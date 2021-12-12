@@ -29,11 +29,12 @@ var wallet1 = new Wallet(myKey1,myWalletAddress1,100);
 var wallet2 = new Wallet(myKey2,myWalletAddress2,100);
 const wallets = [{},wallet1,wallet2]
 class Transaction {
-    constructor(fromAddress, toAddress, amount) {
+    constructor(fromAddress, toAddress, amount,gas) {
         this.fromAddress = fromAddress
         this.toAddress = toAddress
         this.amount = amount
         this.timestamp = Date.now()
+        this.gas=gas
     }
 
     calculateHash() {
@@ -49,8 +50,8 @@ class Transaction {
         this.signature = sig.toDER('hex')
     }
 
-    isValid() {
-        if (this.fromAddress === null) return true
+    isValid(chain) {
+        if (this.fromAddress === null ) return true
         if (!this.signature || this.signature.length === 0) {
             throw new Error('No signature in the transaction')
         }
@@ -97,9 +98,9 @@ class Block {
         // console.log('Block mined' + this.hash);
     }
 
-    hasValidTransactions() {
+    hasValidTransactions(chain) {
         for (const tx of this.transactions) {
-            if (!tx.isValid()) {
+            if (!tx.isValid(chain)) {
                 return false
             }
         }
@@ -131,10 +132,10 @@ class Blockchain {
 
     loadTransactionsIntoBlocks(transactionPool){
         let counter = 0;
+        let mine= 0;
         for(const element of transactionPool) {
-            // console.log(element.fromAddress)
             let newTransaction = new Transaction(wallets[element.fromAddress].pk, wallets[element.toAddress].pk, element.amount)
-          //  console.log(wallets[element.fromAddress].sk)
+
             newTransaction.signTransaction(wallets[element.fromAddress].sk)
             pendingTransactionToExport.push(newTransaction)
             this.addTransaction(newTransaction)
@@ -143,8 +144,12 @@ class Blockchain {
             if(counter % 4 === 0){
                 this.miningPendingTransaction(miningRewardAddress)
                 this.miningPendingTransaction(myWalletAddress1)
+                mine+=1;
             }
+
         }
+            console.log("Mining Successfully " + mine + " Times\n")
+
     }
 
     miningPendingTransaction(miningRewardAddress) {
@@ -201,7 +206,7 @@ class Blockchain {
             const currentBlock = this.chain[i]
             const previousBlock = this.chain[i - 1]
 
-            if (!currentBlock.hasValidTransactions()) {
+            if (!currentBlock.hasValidTransactions(this.chain)) {
                 return false
             }
             if (currentBlock.hash !== currentBlock.calculateHash()) {
